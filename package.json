@@ -1,0 +1,52 @@
+{
+  "name": "pastella-utils",
+  "version": "1.0.0",
+  "description": "Complete TypeScript wallet library and utilities for Pastella cryptocurrency",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "pastella",
+    "cryptocurrency",
+    "wallet",
+    "blockchain",
+    "crypto",
+    "typescript",
+    "react-native",
+    "utilities"
+  ],
+  "author": "Pastella Developers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pastella/pastella-utils"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^2.0.0",
+    "js-sha3": "^0.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.60.0"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "QUICKSTART.md",
+    "INTEGRATION.md",
+    "LICENSE"
+  ]
+}
