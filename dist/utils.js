@@ -139,29 +139,6 @@ export function getTransactionId(hash) {
     // In Pastella, transaction ID is typically the hash
     return hash;
 }
-/**
- * Calculate estimated transaction size
- */
-export function estimateTransactionSize(inputs, outputs, mixin, paymentId = false) {
-    // Basic size estimation formula
-    const headerSize = 1; // version
-    const unlockTimeSize = 8; // uint64
-    const extraSize = paymentId ? 34 : 2; // Payment ID or nonce
-    // Input size: type (1) + amount (8) + offsets (variable)
-    const inputSize = inputs * (1 + 8 + (mixin + 1) * 4);
-    // Output size: amount (8) + key (32)
-    const outputSize = outputs * (8 + 32);
-    // Signatures: 64 bytes per input
-    const signatureSize = inputs * 64;
-    return headerSize + unlockTimeSize + inputSize + outputSize + extraSize + signatureSize;
-}
-/**
- * Calculate transaction fee
- */
-export function calculateFee(inputs, outputs, mixin, feePerByte = 0.01) {
-    const size = estimateTransactionSize(inputs, outputs, mixin);
-    return Math.ceil(size * feePerByte);
-}
 // ============================================================================
 // TIME UTILITIES
 // ============================================================================
@@ -264,12 +241,6 @@ export function validateAmount(amount) {
     return amount > 0 && Number.isFinite(amount);
 }
 /**
- * Validate mixin count
- */
-export function validateMixin(mixin, maxMixin = 10) {
-    return mixin >= 0 && mixin <= maxMixin && Number.isInteger(mixin);
-}
-/**
  * Validate fee amount
  */
 export function validateFee(fee, minFee = 1000) {
@@ -324,8 +295,6 @@ export default {
     splitMnemonic,
     joinMnemonic,
     getTransactionId,
-    estimateTransactionSize,
-    calculateFee,
     timestampToDate,
     dateToTimestamp,
     formatTimestamp,
@@ -334,7 +303,6 @@ export default {
     getUnlockBlocks,
     isOutputUnlocked,
     validateAmount,
-    validateMixin,
     validateFee,
     WalletError,
     InsufficientBalanceError,

@@ -203,14 +203,13 @@ function processTransactionSpends(transactions, block, ctx, newSpends, processed
             processedInputs.add(inputId);
             let matchedOutput = null;
             let matchMethod = 'none';
-            // METHOD 0: EXACT UTXO REFERENCE MATCHING (PRIMARY METHOD)
             // In transparent system, KeyInput explicitly identifies which UTXO is being spent
             // This is the most accurate method - matches by transactionHash AND outputIndex
             if (input.transactionHash && input.outputIndex !== undefined) {
                 for (const [key, output] of outputs) {
                     if (output.spentHeight)
                         continue;
-                    /* CRITICAL FIX: Compare output.outputIndex (not transactionIndex) with input.outputIndex
+                    /* Compare output.outputIndex (not transactionIndex) with input.outputIndex
                      * transactionIndex = transaction's position in the block (1, 2, 3...)
                      * outputIndex = output's position in the transaction (0, 1, 2...)
                      * The input's outputIndex refers to which output in the transaction is being spent */
@@ -222,7 +221,7 @@ function processTransactionSpends(transactions, block, ctx, newSpends, processed
                     }
                 }
             }
-            // METHOD 1: Global output index matching (fallback when exact reference not available)
+            // Global output index matching (fallback when exact reference not available)
             // This is accurate when globalOutputIndex is available from daemon
             if (!matchedOutput) {
                 const keyOffsets = input.value?.keyOffsets ?? input.keyOffsets;
@@ -239,7 +238,7 @@ function processTransactionSpends(transactions, block, ctx, newSpends, processed
                     }
                 }
             }
-            // METHOD 2: Amount-based FIFO matching (LAST RESORT fallback)
+            // Amount-based FIFO matching
             // This is a heuristic that matches oldest unspent output with the same amount
             // NOT RECOMMENDED - can match wrong outputs when multiple outputs have same amount
             if (!matchedOutput) {
@@ -280,14 +279,6 @@ function processTransactionSpends(transactions, block, ctx, newSpends, processed
                 // Track spend
                 spends.set(matchedOutput.key, spend);
                 newSpends.push(spend);
-                const isStakingTx = ctx.stakingTxHashes.has(tx.hash);
-                console.log(`[WalletSync] Output spent by ${matchMethod}:`, {
-                    amount: matchedOutput.output.amount,
-                    transactionHash: matchedOutput.output.transactionHash.substring(0, 16) + '...',
-                    outputIndex: matchedOutput.output.outputIndex,
-                    spentBy: tx.hash.substring(0, 16) + '...',
-                    stakingTx: isStakingTx,
-                });
             }
         }
     }
@@ -301,10 +292,9 @@ export function processSpends(block, ctx) {
     const processedInputs = new Set();
     // Process regular transactions (coinbase doesn't have inputs)
     processTransactionSpends(block.transactions, block, ctx, newSpends, processedInputs);
-    // CRITICAL FIX: Also process staking transaction inputs!
+    // Also process staking transaction inputs!
     // Staking transactions can spend outputs just like regular transactions
     if (block.stakingTX && Array.isArray(block.stakingTX) && block.stakingTX.length > 0) {
-        console.log(`[WalletSync] Processing ${block.stakingTX.length} staking transaction(s) for spends`);
         processTransactionSpends(block.stakingTX, block, ctx, newSpends, processedInputs);
     }
     return newSpends;

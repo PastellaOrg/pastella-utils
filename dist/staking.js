@@ -2,7 +2,6 @@
  * Pastella Staking Module
  *
  * Handles staking transaction creation and management
- * Based on pastella-core zedwallet++ implementation
  */
 import { PendingStakeState, } from './types';
 import { sendTransaction as sendTx, } from './transaction';
@@ -110,14 +109,6 @@ maturityBlocks = MATURITY_BLOCKS, preparationTxHash // NEW: Only use outputs fro
     const filteredOutputs = preparationTxHash
         ? spendable.filter(o => o.transactionHash === preparationTxHash)
         : spendable;
-    console.log('[pickStakingInputs] Filtering outputs:', {
-        totalSpendable: spendable.length,
-        preparationTxHash: preparationTxHash?.substring(0, 16) + '...',
-        filteredCount: filteredOutputs.length,
-        filteredAmounts: filteredOutputs.map(o => o.amount),
-        expectedAmount: amount,
-        expectedFee: currentFee,
-    });
     // Find input for the exact staking amount
     let amountInput = null;
     for (const output of filteredOutputs) {
@@ -127,47 +118,24 @@ maturityBlocks = MATURITY_BLOCKS, preparationTxHash // NEW: Only use outputs fro
         }
     }
     if (!amountInput) {
-        console.log('[pickStakingInputs] Amount input not found in filtered outputs');
         return null;
     }
     // Find input for the fee (must be exactly currentFee, different output)
     let feeInput = null;
-    console.log('[pickStakingInputs] Searching for fee input with amount:', currentFee);
-    console.log('[pickStakingInputs] amountInput details:', {
-        amount: amountInput.amount,
-        transactionHash: amountInput.transactionHash.substring(0, 16) + '...',
-        transactionIndex: amountInput.transactionIndex,
-        outputIndex: amountInput.outputIndex,
-    });
     for (const output of filteredOutputs) {
         const amountMatch = output.amount === currentFee;
         const notAmountMatch = output.amount !== amount;
         const hashDifferent = output.transactionHash !== amountInput.transactionHash;
         const indexDifferent = output.transactionIndex !== amountInput.transactionIndex;
-        console.log('[pickStakingInputs] Checking output:', {
-            amount: output.amount,
-            transactionIndex: output.transactionIndex,
-            outputIndex: output.outputIndex,
-            amountMatch,
-            notAmountMatch,
-            hashDifferent,
-            indexDifferent,
-            wouldSelect: amountMatch && notAmountMatch && (hashDifferent || indexDifferent),
-        });
         if (amountMatch && notAmountMatch) {
             // Check it's not the same as the amount input
             if (hashDifferent || indexDifferent) {
                 feeInput = output;
-                console.log('[pickStakingInputs] Found fee input!');
                 break;
-            }
-            else {
-                console.log('[pickStakingInputs] Fee output matches but is same as amount input?');
             }
         }
     }
     if (!feeInput) {
-        console.log('[pickStakingInputs] Fee input not found in filtered outputs');
         return null;
     }
     // Create SelectedInput array
@@ -189,31 +157,6 @@ maturityBlocks = MATURITY_BLOCKS, preparationTxHash // NEW: Only use outputs fro
             privateKey,
         },
     ];
-    console.log('[pickStakingInputs] === PICKED STAKING INPUTS ===');
-    console.log('[pickStakingInputs] Wallet publicKey:', publicKey.substring(0, 16) + '...');
-    console.log('[pickStakingInputs] Amount output key:', amountInput.key.substring(0, 16) + '...');
-    console.log('[pickStakingInputs] Fee output key:', feeInput.key.substring(0, 16) + '...');
-    console.log('[pickStakingInputs] Keys match output?', amountInput.key === publicKey && feeInput.key === publicKey);
-    console.log('[pickStakingInputs] Amount input:', {
-        amount: amountInput.amount,
-        transactionHash: amountInput.transactionHash,
-        outputIndex: amountInput.outputIndex,
-        amountOutputIndex,
-    });
-    console.log('[pickStakingInputs] Fee input:', {
-        amount: feeInput.amount,
-        transactionHash: feeInput.transactionHash,
-        outputIndex: feeInput.outputIndex,
-        feeOutputIndex,
-        expectedFee: currentFee,
-    });
-    console.log('[pickStakingInputs] SelectedInput array:', inputs.map(i => ({
-        outputAmount: i.output.amount,
-        outputIndex: i.outputIndex,
-        txHash: i.transactionHash.substring(0, 16) + '...',
-    })));
-    console.log('[pickStakingInputs] Total input:', amount + currentFee);
-    console.log('[pickStakingInputs] ======================================');
     return {
         inputs,
         totalInput: amount + currentFee,
@@ -257,21 +200,16 @@ export function generateStakingSignature(amount, lockDurationDays, unlockTime, p
     messageView.setUint32(8, lockDurationDays, true);
     // Write unlockTime (uint64, little-endian)
     messageView.setBigUint64(12, BigInt(unlockTime), true);
-    console.log('[generateStakingSignature] Message bytes:', Array.from(message).map(b => b.toString(16).padStart(2, '0')).join(' '));
-    console.log('[generateStakingSignature] Message params:', { amount, lockDurationDays, unlockTime });
     // Hash the message using Keccak-256
     const messageHash = keccak256(message);
     const messageHashBytes = hexToBytes(messageHash);
-    console.log('[generateStakingSignature] Message hash:', messageHash);
     // Generate Schnorr signature
     const signature = generateSchnorrSignature(messageHashBytes, publicKey, privateKey);
-    console.log('[generateStakingSignature] Signature:', bytesToHex(signature).substring(0, 32) + '...');
     // Verify the signature locally before returning
     const { verifySchnorrSignature } = require('./crypto');
     const isValid = verifySchnorrSignature(messageHashBytes, publicKey, signature);
-    console.log('[generateStakingSignature] Local signature verification:', isValid ? 'VALID' : 'INVALID');
     if (!isValid) {
-        console.error('[generateStakingSignature] ERROR: Generated signature is INVALID!');
+        throw new Error('Generated signature is INVALID!');
     }
     return bytesToHex(signature);
 }
@@ -285,11 +223,9 @@ export function generateStakingSignature(amount, lockDurationDays, unlockTime, p
  * This manually builds a transaction to ensure we get exactly 2 outputs.
  */
 export async function prepareStakingOutputs(amount, address, outputs, publicKey, privateKey, currentHeight, node, maturityBlocks = MATURITY_BLOCKS) {
-    console.log('[prepareStakingOutputs] Called with currentHeight:', currentHeight);
     try {
         // Use MIN_FEE constant
         const currentFee = MIN_FEE;
-        console.log('[prepareStakingOutputs] Using MIN_FEE:', currentFee);
         // Get spendable outputs
         const matureHeight = currentHeight - maturityBlocks;
         const spendable = outputs.filter(o => {
@@ -321,7 +257,6 @@ export async function prepareStakingOutputs(amount, address, outputs, publicKey,
                 error: `Insufficient funds. Need ${totalNeeded}, have ${totalInput}`,
             };
         }
-        console.log('[prepareStakingOutputs] Selected inputs:', selectedInputs.length, 'total:', totalInput);
         // Build the preparation transaction manually
         // Convert to SelectedInput format
         const inputs = selectedInputs.map(output => ({
@@ -350,9 +285,7 @@ export async function prepareStakingOutputs(amount, address, outputs, publicKey,
             };
         }
         // Send transaction
-        console.log('[prepareStakingOutputs] Sending transaction...');
         const result = await sendTx(txHex, node);
-        console.log('[prepareStakingOutputs] Transaction sent:', result);
         return {
             success: true,
             txHash: result.hash,
@@ -377,14 +310,8 @@ export async function prepareStakingOutputs(amount, address, outputs, publicKey,
 export async function createStakingTransaction(amount, lockDurationDays, address, outputs, publicKey, privateKey, currentHeight, node, maturityBlocks = MATURITY_BLOCKS, preparationTxHash // NEW: Use outputs from this specific transaction
 ) {
     try {
-        console.log('[createStakingTransaction] Starting with amount:', amount);
-        console.log('[createStakingTransaction] currentHeight:', currentHeight);
-        if (preparationTxHash) {
-            console.log('[createStakingTransaction] Using preparation tx:', preparationTxHash.substring(0, 16) + '...');
-        }
         // Use MIN_FEE constant
         const currentFee = MIN_FEE;
-        console.log('[createStakingTransaction] Using MIN_FEE:', currentFee);
         // Check if precise outputs exist (using the current fee)
         if (!hasPreciseStakingOutputs(amount, outputs, currentHeight, currentFee, maturityBlocks)) {
             return {
@@ -400,31 +327,12 @@ export async function createStakingTransaction(amount, lockDurationDays, address
                 error: 'Failed to pick staking inputs - exact amounts not available',
             };
         }
-        console.log('[createStakingTransaction] Picked inputs:', picked.inputs.length, 'totalInput:', picked.totalInput);
-        console.log('[createStakingTransaction] Picked inputs details:', picked.inputs.map((i, idx) => ({
-            index: idx,
-            amount: i.output.amount,
-            outputIndex: i.outputIndex,
-            txHash: i.transactionHash.substring(0, 16) + '...',
-        })));
         // Calculate unlock time
-        console.log('[createStakingTransaction] unlockTime calculation:', {
-            lockDurationDays,
-            currentHeight,
-            blockTimeSeconds: BLOCK_TIME_SECONDS,
-            lockPeriodBlocks: (lockDurationDays * 86400) / BLOCK_TIME_SECONDS,
-            unlockTime: calculateUnlockTime(lockDurationDays, currentHeight),
-        });
         const unlockTime = calculateUnlockTime(lockDurationDays, currentHeight);
         // Generate staking signature
-        // CRITICAL: Must use the same public key that's in the UTXO output being spent
+        // Must use the same public key that's in the UTXO output being spent
         // The daemon will extract this key from the preparation transaction output
-        const utxoPublicKey = picked.inputs[0].output.key;
-        console.log('[createStakingTransaction] UTXO public key:', utxoPublicKey.substring(0, 16) + '...');
-        console.log('[createStakingTransaction] Wallet public key:', publicKey.substring(0, 16) + '...');
-        console.log('[createStakingTransaction] Keys match:', utxoPublicKey === publicKey);
         const signature = generateStakingSignature(amount, lockDurationDays, unlockTime, publicKey, privateKey);
-        console.log('[createStakingTransaction] Signature generated');
         // Build transaction manually with staking extra
         const txHex = await buildStakingTransactionHex(amount, lockDurationDays, unlockTime, signature, address, picked.inputs, publicKey, privateKey);
         if (!txHex) {
@@ -433,16 +341,11 @@ export async function createStakingTransaction(amount, lockDurationDays, address
                 error: 'Failed to build staking transaction',
             };
         }
-        console.log('[createStakingTransaction] Transaction hex length:', txHex.length);
-        console.log('[createStakingTransaction] Transaction hex (first 200 chars):', txHex.substring(0, 200));
-        console.log('[createStakingTransaction] Transaction built, sending...');
         // Calculate proper transaction hash using Keccak-256 of full transaction bytes
         const txBytes = hexToBytes(txHex);
         const txHash = keccak256(txBytes);
-        console.log('[createStakingTransaction] Transaction hash:', txHash);
         // Send transaction
         const result = await sendTx(txHex, node);
-        console.log('[createStakingTransaction] Transaction sent:', result);
         return {
             success: true,
             txHash: txHash, // Use proper Keccak-256 hash
@@ -480,31 +383,9 @@ async function buildPreparationTransactionHex(amount, currentFee, inputs, output
     const preparationTxFee = MIN_FEE; // Fee for this preparation transaction
     const change = totalInput - outputAmount1 - outputAmount2 - preparationTxFee;
     if (change < 0) {
-        console.error('[buildPreparationTransactionHex] ERROR: Insufficient inputs!', {
-            totalInput,
-            needed: amount + currentFee + preparationTxFee,
-            stakingAmount: amount,
-            stakingTxFee: currentFee,
-            preparationTxFee,
-        });
         return '';
     }
     const totalOutput = outputAmount1 + outputAmount2 + change;
-    console.log('[buildPreparationTransactionHex] === PREPARATION TRANSACTION DETAILS ===');
-    console.log('[buildPreparationTransactionHex] Building tx:', {
-        totalInput,
-        outputs: [outputAmount1, outputAmount2, change],
-        totalOutput,
-        preparationTxFee,
-        currentFee,
-        expectedOutputs: `Output1: ${amount} (staking), Output2: ${currentFee} (staking tx fee), Output3: ${change} (change)`,
-        stakingAmount: amount,
-    });
-    console.log('[buildPreparationTransactionHex] After this tx is mined, wallet should have outputs:');
-    console.log(`[buildPreparationTransactionHex]   - ${amount} (staking amount)`);
-    console.log(`[buildPreparationTransactionHex]   - ${currentFee} (fee for staking tx)`);
-    console.log(`[buildPreparationTransactionHex]   - ${change} (change returned to wallet)`);
-    console.log('[buildPreparationTransactionHex] ==================================================');
     // Build outputs: [staking amount, staking tx fee, change]
     const serializedOutputs = [
         { key: outputKey, amount: outputAmount1 },
@@ -553,28 +434,14 @@ async function buildStakingTransactionHex(amount, lockDurationDays, unlockTime, 
     const { keccak256 } = await import('js-sha3');
     const { generateSchnorrSignature } = await import('./crypto');
     // Convert SelectedInput[] to SerializedKeyInput[]
-    console.log('[buildStakingTransactionHex] Inputs before conversion:', inputs.map(i => ({
-        amount: i.output.amount,
-        outputIndex: i.outputIndex,
-        transactionHash: i.transactionHash.substring(0, 16) + '...',
-    })));
-    const serializedInputs = inputs.map(input => {
-        const result = {
-            amount: input.output.amount,
-            outputIndexes: [input.outputIndex ?? 0],
-            transactionHash: input.transactionHash,
-            outputIndex: input.outputIndex ?? 0,
-            publicKey: input.publicKey,
-            privateKey: input.privateKey,
-        };
-        console.log('[buildStakingTransactionHex] Converted input:', {
-            amount: result.amount,
-            outputIndexes: result.outputIndexes,
-            outputIndex: result.outputIndex,
-        });
-        return result;
-    });
-    console.log('[buildStakingTransactionHex] serializedInputs:', serializedInputs.length);
+    const serializedInputs = inputs.map(input => ({
+        amount: input.output.amount,
+        outputIndexes: [input.outputIndex ?? 0],
+        transactionHash: input.transactionHash,
+        outputIndex: input.outputIndex ?? 0,
+        publicKey: input.publicKey,
+        privateKey: input.privateKey,
+    }));
     // Build output - single output with the staking amount
     let outputKey;
     if (address.length === 64 && /^[0-9a-fA-F]{64}$/.test(address)) {
@@ -591,16 +458,9 @@ async function buildStakingTransactionHex(amount, lockDurationDays, unlockTime, 
         }];
     // Build extra field with both public key AND staking data
     const extraData = buildExtraWithStaking(publicKey, amount, unlockTime, lockDurationDays, signature);
-    console.log('[buildStakingTransactionHex] About to build prefix with unlockTime:', unlockTime);
     // Build transaction prefix manually (to include custom extra field)
     const prefixBytes = serializeTransactionPrefixWithCustomExtra(serializedInputs, serializedOutputs, extraData, unlockTime, 1 // version
     );
-    console.log('[buildStakingTransactionHex] Prefix bytes length:', prefixBytes.length);
-    console.log('[buildStakingTransactionHex] First 10 bytes:', Array.from(prefixBytes.slice(0, 10)).map(b => b.toString(16).padStart(2, '0')).join(' '));
-    // Decode unlockTime from prefix to verify
-    const { readVarint } = createSerializationHelpers();
-    const unlockTimeCheck = readVarint(prefixBytes, 1); // Skip version byte
-    console.log('[buildStakingTransactionHex] Decoded unlockTime from prefix:', unlockTimeCheck.value, '(expected:', unlockTime, ')');
     // Compute hash of the prefix for signing
     const prefixHash = keccak256(prefixBytes);
     const prefixHashBytes = hexToBytes(prefixHash);
@@ -638,19 +498,7 @@ function buildExtraWithStaking(publicKey, amount, unlockTime, lockDurationDays, 
         throw new Error('Signature must be 64 bytes');
     }
     extra.push(...Array.from(sigBytes));
-    const result = new Uint8Array(extra);
-    console.log('[buildExtraWithStaking] Extra field length:', result.length);
-    console.log('[buildExtraWithStaking] Extra field hex:', bytesToHex(result));
-    // Log individual parts
-    console.log('[buildExtraWithStaking] TX_EXTRA_TAG_PUBKEY: 0x01');
-    console.log('[buildExtraWithStaking] Public key:', publicKey.substring(0, 16) + '...');
-    console.log('[buildExtraWithStaking] TX_EXTRA_STAKING: 0x' + TX_EXTRA_STAKING.toString(16));
-    console.log('[buildExtraWithStaking] STAKING_TX_TYPE:', STAKING_TX_TYPE);
-    console.log('[buildExtraWithStaking] amount:', amount);
-    console.log('[buildExtraWithStaking] unlockTime:', unlockTime);
-    console.log('[buildExtraWithStaking] lockDurationDays:', lockDurationDays);
-    console.log('[buildExtraWithStaking] signature:', signature.substring(0, 32) + '...');
-    return result;
+    return new Uint8Array(extra);
 }
 /**
  * Concatenate multiple byte arrays
@@ -706,44 +554,24 @@ function createSerializationHelpers() {
     const writeVarint = (value) => {
         const bytes = [];
         const bigValue = BigInt(value);
-        if (value === 518785) {
-            console.log('[writeVarint] ===== Encoding 518785 (0x' + bigValue.toString(16).toUpperCase() + ') =====');
-            console.log('[writeVarint] Binary:', bigValue.toString(2).padStart(24, '0'));
-        }
         let n = bigValue;
-        let iteration = 0;
         while (true) {
             // Extract lowest 7 bits
             const lowest7Bits = n & 0x7fn;
-            if (value === 518785) {
-                console.log(`[writeVarint] Iter ${iteration}: n=0x${n.toString(16).padStart(5, '0').toUpperCase()}, lowest7Bits=0x${lowest7Bits.toString(16).padStart(2, '0').toUpperCase()}`);
-            }
             // Check if this is the last byte (no more bits beyond the 7 we just extracted)
             const isLastByte = (n >> 7n) === 0n;
             if (isLastByte) {
                 // Last byte: no continuation bit
                 bytes.push(Number(lowest7Bits));
-                if (value === 518785) {
-                    console.log(`[writeVarint] Iter ${iteration}: LAST BYTE, writing 0x${lowest7Bits.toString(16).padStart(2, '0').toUpperCase()} (no continuation)`);
-                }
                 break;
             }
             else {
                 // Not the last byte: set continuation bit (0x80)
                 const byteWithContinuation = lowest7Bits | 0x80n;
                 bytes.push(Number(byteWithContinuation));
-                if (value === 518785) {
-                    console.log(`[writeVarint] Iter ${iteration}: MORE BYTES, writing 0x${byteWithContinuation.toString(16).padStart(2, '0').toUpperCase()} (with continuation 0x80)`);
-                }
                 // Shift right by 7 bits for next iteration
                 n >>= 7n;
-                iteration++;
             }
-        }
-        if (value === 518785) {
-            console.log('[writeVarint] Final bytes:', Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '));
-            console.log('[writeVarint] Total bytes:', bytes.length);
-            console.log('[writeVarint] =====');
         }
         return new Uint8Array(bytes);
     };
@@ -779,12 +607,6 @@ function createSerializationHelpers() {
 function serializeKeyInput(input) {
     const parts = [];
     const { writeVarint } = createSerializationHelpers();
-    console.log('[serializeKeyInput] Serializing input:', {
-        amount: input.amount,
-        outputIndexes: input.outputIndexes,
-        outputIndex: input.outputIndex,
-        txHash: input.transactionHash.substring(0, 16) + '...',
-    });
     // amount (varint encoded uint64_t)
     parts.push(writeVarint(input.amount));
     // outputIndexes count (varint)
@@ -799,9 +621,8 @@ function serializeKeyInput(input) {
         throw new Error(`transactionHash must be 32 bytes, got ${hashBytes.length}`);
     }
     parts.push(hashBytes);
-    // outputIndex (varint encoded uint32_t) - CRITICAL: This MUST be written!
+    // outputIndex (varint encoded uint32_t)
     parts.push(writeVarint(input.outputIndex));
-    console.log('[serializeKeyInput] outputIndex varint:', Array.from(writeVarint(input.outputIndex)).map(b => b.toString(16).padStart(2, '0')).join(' '));
     return concatBytes(...parts);
 }
 /**
@@ -835,7 +656,7 @@ function writeVarintLocal(value) {
         const byte = Number((remaining & mask) | continuation);
         bytes.push(byte);
         remaining >>= 7n;
-    } while (remaining > 0n); // FIX: Continue while there's remaining value, not just while >= threshold
+    } while (remaining > 0n);
     bytes[bytes.length - 1] &= 0x7f; // Clear continuation bit on last byte
     return bytes;
 }

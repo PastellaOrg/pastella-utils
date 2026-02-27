@@ -3,7 +3,7 @@
  *
  * Handles all RPC communication with the Pastella daemon
  */
-import { GetHeightResponse, GetTransactionsResponse, GetRandomOutsResponse, SendRawTransactionResponse, NodeConfig, GetRawBlocksResponse, GetWalletSyncDataRequest, GetWalletSyncDataResponse, GetTransactionsStatusRequest, GetTransactionsStatusResponse, GetFeeResponse, GetStakingPoolInfoResponse, GetPendingRewardsRequest, GetPendingRewardsResponse, GetUserStakesRequest, GetUserStakesResponse, GetAllStakesRequest, GetAllStakesResponse } from './types';
+import { GetHeightResponse, GetTransactionsResponse, SendRawTransactionResponse, NodeConfig, GetRawBlocksResponse, GetWalletSyncDataRequest, GetWalletSyncDataResponse, GetTransactionsStatusRequest, GetTransactionsStatusResponse, GetFeeResponse, GetStakingPoolInfoResponse, GetPendingRewardsRequest, GetPendingRewardsResponse, GetUserStakesRequest, GetUserStakesResponse, GetAllStakesRequest, GetAllStakesResponse } from './types';
 export declare class DaemonApi {
     private node;
     private timeout;
@@ -77,10 +77,6 @@ export declare class DaemonApi {
      * Send raw transaction to the network
      */
     sendRawTransaction(txHex: string): Promise<SendRawTransactionResponse>;
-    /**
-     * Get random outputs for mixing (mixin)
-     */
-    getRandomOutsForAmounts(amounts: number[], outsCount: number): Promise<GetRandomOutsResponse>;
     /**
      * Get transaction global output indexes
      */

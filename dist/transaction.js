@@ -2,7 +2,6 @@
  * Pastella Transaction Builder
  *
  * Handles transaction creation with proper binary serialization
- * Based on CryptoNote format with transparent system modifications
  */
 import { DaemonApi } from './api';
 import { keccak256 } from 'js-sha3';
@@ -22,7 +21,6 @@ const TAG_BASE_INPUT = 0xff; // BaseInput variant tag (coinbase)
 // ============================================================================
 /**
  * Varint encode a number (uses BigInt to avoid precision loss with large values)
- * Based on C++ implementation: void writeVarint(IOutputStream &out, uint64_t value)
  */
 function writeVarint(value) {
     // Use BigInt to avoid precision loss with numbers > 2^53
@@ -114,7 +112,6 @@ for (let i = 0; i < BASE58_ALPHABET.length; i++) {
 }
 /**
  * Decode a Base58 string to bytes
- * Block-based approach that matches the C++ implementation in pastella-core
  */
 function base58Decode(input) {
     const ENCODED_BLOCK_SIZES = [0, 2, 3, 5, 6, 7, 9, 10, 11];
@@ -183,7 +180,6 @@ function base58Decode(input) {
 }
 /**
  * Encode bytes to Base58 string
- * Block-based approach that matches the C++ implementation in pastella-core
  */
 function base58Encode(buffer) {
     const ENCODED_BLOCK_SIZES = [0, 2, 3, 5, 6, 7, 9, 10, 11];
@@ -251,7 +247,7 @@ function decodeVarint(bytes, offset = 0) {
     return { value, bytesRead };
 }
 /**
- * Extract public key from a Na1 address
+ * Extract public key from a readable address
  * Address format: [prefix varint] + [publicKey 32 bytes] + [checksum 4 bytes]
  * All Base58 encoded
  */
@@ -421,17 +417,9 @@ export class TransactionSerializer {
     }
     /**
      * Serialize a KeyOutput to binary format
-     *
-     * C++ reference:
-     * void serialize(KeyOutput &key, ISerializer &serializer)
-     * {
-     *     serializer(key.key, "key");
-     * }
      */
     static serializeKeyOutput(output) {
         const parts = [];
-        // NOTE: Variant tag is written by caller (serializeTransactionOutput)
-        // NOT here - this matches C++ implementation where serialize(KeyOutput) doesn't write tag
         // key (32 bytes, raw binary)
         const keyBytes = writeBytes(output.key);
         if (keyBytes.length !== 32) {
@@ -443,13 +431,6 @@ export class TransactionSerializer {
     }
     /**
      * Serialize a transaction output (amount + KeyOutput)
-     *
-     * C++ reference:
-     * void serialize(TransactionOutput &output, ISerializer &serializer)
-     * {
-     *     serializer(output.amount, "amount");
-     *     serializer(output.target, "target");
-     * }
      */
     static serializeTransactionOutput(output) {
         const parts = [];
@@ -535,7 +516,7 @@ export class TransactionSerializer {
     /**
      * Generate Schnorr-style signature for transaction input
      *
-     * In transparent mode, each input requires one Schnorr signature.
+     * Each input requires one Schnorr signature.
      * The signature is computed by signing the transaction prefix hash
      * with the private key using the algorithm from pastella-core.
      *
@@ -559,28 +540,9 @@ export class TransactionSerializer {
     }
     /**
      * Serialize a complete transaction to binary format
-     *
-     * C++ reference:
-     * void serialize(TransactionPrefix &txP, ISerializer &serializer)
-     * {
-     *     serializer(txP.version, "version");
-     *     serializer(txP.unlockTime, "unlock_time");
-     *     serializer(txP.inputs, "vin");
-     *     serializer(txP.outputs, "vout");
-     *     serializeAsBinary(txP.extra, "extra", serializer);
-     * }
-     *
-     * And then signatures:
-     * for (uint64_t i = 0; i < tx.inputs.size(); ++i)
-     * {
-     *     for (Crypto::Signature &sig : tx.signatures[i])
-     *     {
-     *         serializePod(sig, "", serializer);
-     *     }
-     * }
      */
     static serializeTransaction(inputs, outputs, publicKey, unlockTime = 0, version = 1) {
-        // First, serialize the transaction prefix (without signatures)
+        // Serialize the transaction prefix (without signatures)
         const prefixBytes = this.serializeTransactionPrefix(inputs, outputs, publicKey, unlockTime, version);
         // Compute hash of the prefix for signing
         const prefixHash = this.computeHash(prefixBytes);
@@ -623,7 +585,7 @@ export class TransactionBuilder {
             const dest = pickResult.destinations[i];
             // Convert address to hex public key for serialization
             let key;
-            // Check if address starts with the wallet prefix string (e.g., "PAS1") or legacy "Na1"
+            // Check if address starts with the wallet prefix string (e.g., "PAS1")
             if (dest.address.startsWith(WALLET_ADDRESS_PREFIX_STRING)) {
                 key = addressToPublicKey(dest.address);
             }

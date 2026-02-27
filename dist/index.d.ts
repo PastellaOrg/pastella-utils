@@ -1,6 +1,5 @@
 /**
- * Pastella Utils - EXACT WORKING VERSION
- * This is the exact implementation that works in test-wallet.mjs
+ * Pastella Utils
  */
 /**
  * Decode a Base58 string to bytes
@@ -21,7 +20,7 @@ export declare class PastellaWallet {
     }>;
 }
 /**
- * Convert a hex string public key to a Na1 address
+ * Convert a hex string public key to a readable address
  */
 export declare function publicKeyHexToAddress(publicKeyHex: string): string;
 /**

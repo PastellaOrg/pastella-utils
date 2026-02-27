@@ -2,7 +2,6 @@
  * Pastella Transaction Builder
  *
  * Handles transaction creation with proper binary serialization
- * Based on CryptoNote format with transparent system modifications
  */
 import { WalletOutput, NodeConfig } from './types';
 export interface SelectedInput {
@@ -48,11 +47,10 @@ export interface SendTransactionResult {
 }
 /**
  * Decode a Base58 string to bytes
- * Block-based approach that matches the C++ implementation in pastella-core
  */
 declare function base58Decode(input: string): Uint8Array;
 /**
- * Extract public key from a Na1 address
+ * Extract public key from a readable address
  * Address format: [prefix varint] + [publicKey 32 bytes] + [checksum 4 bytes]
  * All Base58 encoded
  */
@@ -106,23 +104,10 @@ export declare class TransactionSerializer {
     static serializeKeyInput(input: SerializedKeyInput): Uint8Array;
     /**
      * Serialize a KeyOutput to binary format
-     *
-     * C++ reference:
-     * void serialize(KeyOutput &key, ISerializer &serializer)
-     * {
-     *     serializer(key.key, "key");
-     * }
      */
     static serializeKeyOutput(output: SerializedKeyOutput): Uint8Array;
     /**
      * Serialize a transaction output (amount + KeyOutput)
-     *
-     * C++ reference:
-     * void serialize(TransactionOutput &output, ISerializer &serializer)
-     * {
-     *     serializer(output.amount, "amount");
-     *     serializer(output.target, "target");
-     * }
      */
     static serializeTransactionOutput(output: SerializedKeyOutput): Uint8Array;
     /**
@@ -147,7 +132,7 @@ export declare class TransactionSerializer {
     /**
      * Generate Schnorr-style signature for transaction input
      *
-     * In transparent mode, each input requires one Schnorr signature.
+     * Each input requires one Schnorr signature.
      * The signature is computed by signing the transaction prefix hash
      * with the private key using the algorithm from pastella-core.
      *
@@ -167,25 +152,6 @@ export declare class TransactionSerializer {
     static generateSignature(prefixHash: Uint8Array, publicKey: string, privateKey: string): Uint8Array;
     /**
      * Serialize a complete transaction to binary format
-     *
-     * C++ reference:
-     * void serialize(TransactionPrefix &txP, ISerializer &serializer)
-     * {
-     *     serializer(txP.version, "version");
-     *     serializer(txP.unlockTime, "unlock_time");
-     *     serializer(txP.inputs, "vin");
-     *     serializer(txP.outputs, "vout");
-     *     serializeAsBinary(txP.extra, "extra", serializer);
-     * }
-     *
-     * And then signatures:
-     * for (uint64_t i = 0; i < tx.inputs.size(); ++i)
-     * {
-     *     for (Crypto::Signature &sig : tx.signatures[i])
-     *     {
-     *         serializePod(sig, "", serializer);
-     *     }
-     * }
      */
     static serializeTransaction(inputs: SerializedKeyInput[], outputs: SerializedKeyOutput[], publicKey: string, unlockTime?: number, version?: number): Uint8Array;
 }

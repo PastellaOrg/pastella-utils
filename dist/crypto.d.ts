@@ -6,13 +6,6 @@
  */
 /**
  * Hash data to a scalar using Keccak-256 and then reduce modulo curve order
- * This matches the hash_to_scalar function from pastella-core's crypto.cpp:
- *
- * static inline void hash_to_scalar(const void *data, size_t length, EllipticCurveScalar &res)
- * {
- *     cn_fast_hash(data, length, reinterpret_cast<Hash &>(res));
- *     sc_reduce32(reinterpret_cast<unsigned char *>(&res));
- * }
  */
 export declare function hashToScalar(data: Uint8Array): Uint8Array;
 /**
@@ -23,32 +16,6 @@ export declare function randomScalar(): Uint8Array;
 /**
  * Generate a Schnorr-style signature on Ed25519 curve
  *
- * Algorithm from pastella-core's crypto.cpp:
- *
- * void crypto_ops::generate_signature(
- *     const Hash &prefix_hash,
- *     const PublicKey &pub,
- *     const SecretKey &sec,
- *     Signature &sig)
- * {
- *     ge_p3 tmp3;
- *     EllipticCurveScalar k;
- *     s_comm buf;
- *
- *     buf.h = prefix_hash;
- *     buf.key = pub;
- *     random_scalar(k);
- *     ge_scalarmult_base(&tmp3, &k);
- *     ge_p3_tobytes(&buf.comm, &tmp3);
- *     hash_to_scalar(&buf, sizeof(s_comm), &sig);
- *     sc_mulsub(&sig[32], &sig, &sec, &k);
- * }
- *
- * The signature structure s_comm contains:
- *   - h: prefix hash (32 bytes)
- *   - key: public key (32 bytes)
- *   - comm: commitment point R (32 bytes)
- *
  * @param prefixHash - Hash of transaction prefix (32 bytes)
  * @param publicKey - Public key as hex string (64 chars)
  * @param privateKey - Private key as hex string (64 chars)
@@ -57,25 +24,6 @@ export declare function randomScalar(): Uint8Array;
 export declare function generateSchnorrSignature(prefixHash: Uint8Array, publicKey: string, privateKey: string): Uint8Array;
 /**
  * Verify a Schnorr-style signature
- *
- * Algorithm from pastella-core's crypto.cpp:
- *
- * bool crypto_ops::check_signature(const Hash &prefix_hash, const PublicKey &pub, const Signature &sig)
- * {
- *     ge_p2 tmp2;
- *     ge_p3 tmp3;
- *     EllipticCurveScalar c;
- *     s_comm buf;
- *
- *     buf.h = prefix_hash;
- *     buf.key = pub;
- *     ge_frombytes_vartime(&tmp3, &pub);
- *     ge_double_scalarmult_base_vartime(&tmp2, &sig, &tmp3, &sig[32]);
- *     ge_tobytes(&buf.comm, &tmp2);
- *     hash_to_scalar(&buf, sizeof(s_comm), c);
- *     sc_sub(&c, &c, &sig);
- *     return sc_isnonzero(&c) == 0;
- * }
  *
  * @param prefixHash - Hash of transaction prefix (32 bytes)
  * @param publicKey - Public key as hex string (64 chars)

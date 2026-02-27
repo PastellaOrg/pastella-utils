@@ -1,13 +1,12 @@
 /**
- * Pastella Utils - EXACT WORKING VERSION
- * This is the exact implementation that works in test-wallet.mjs
+ * Pastella Utils
  */
 import * as Ed25519 from '@noble/ed25519';
 import sha3 from 'js-sha3';
 import { WALLET_ADDRESS_PREFIX, DECIMALS, TICKER } from './config';
 const keccak256 = sha3.keccak256;
 // ============================================================================
-// WORDLIST (EXACT COPY FROM WORKING TEST)
+// WORDLIST
 // ============================================================================
 const WORDLIST = [
     'abbey', 'abducts', 'ability', 'ablaze', 'abnormal', 'abort', 'abrasive', 'absorb',
@@ -300,7 +299,7 @@ function verifyMnemonicChecksum(mnemonic) {
     return expectedChecksum === actualChecksum;
 }
 // ============================================================================
-// ADDRESS GENERATION (EXACT COPY)
+// ADDRESS GENERATION
 // ============================================================================
 function encodeVarint(num) {
     const bytes = [];
@@ -528,7 +527,7 @@ export class PastellaWallet {
 // PUBLIC KEY DERIVATION HELPER
 // ============================================================================
 /**
- * Convert a hex string public key to a Na1 address
+ * Convert a hex string public key to a readable address
  */
 export function publicKeyHexToAddress(publicKeyHex) {
     const publicKeyBytes = hexToBytes(publicKeyHex);

@@ -7,7 +7,6 @@
 import {
   GetHeightResponse,
   GetTransactionsResponse,
-  GetRandomOutsResponse,
   SendRawTransactionRequest,
   SendRawTransactionResponse,
   NodeConfig,
@@ -196,19 +195,6 @@ export class DaemonApi {
   // ========================================================================
   // OUTPUTS (UTXOS)
   // ========================================================================
-
-  /**
-   * Get random outputs for mixing (mixin)
-   */
-  async getRandomOutsForAmounts(
-    amounts: number[],
-    outsCount: number
-  ): Promise<GetRandomOutsResponse> {
-    return await this.rpcCall<GetRandomOutsResponse>('/getrandom_outs_for_amounts', {
-      amounts,
-      outs_count: outsCount,
-    });
-  }
 
   /**
    * Get transaction global output indexes

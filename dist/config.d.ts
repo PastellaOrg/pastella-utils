@@ -65,8 +65,4 @@ export declare const ANNUAL_REWARD_RATES: number[];
  * Number of blocks to wait for preparation transaction to confirm
  */
 export declare const STAKING_PREPARATION_TIMEOUT_SECONDS = 300;
-/**
- * Storage key for pending stakes in AsyncStorage
- */
-export declare const PENDING_STAKES_KEY = "@pastella_wallet_pending_stakes";
 //# sourceMappingURL=config.d.ts.map

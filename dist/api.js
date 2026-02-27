@@ -113,15 +113,6 @@ export class DaemonApi {
     // OUTPUTS (UTXOS)
     // ========================================================================
     /**
-     * Get random outputs for mixing (mixin)
-     */
-    async getRandomOutsForAmounts(amounts, outsCount) {
-        return await this.rpcCall('/getrandom_outs_for_amounts', {
-            amounts,
-            outs_count: outsCount,
-        });
-    }
-    /**
      * Get transaction global output indexes
      */
     async getTransactionGlobalIndexes(txHash) {

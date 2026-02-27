@@ -53,18 +53,8 @@ function scReduce(input) {
     }
     return scReduce32(input.subarray(0, 64));
 }
-// ============================================================================
-// HASH TO SCALAR (Matches hash_to_scalar from crypto.cpp)
-// ============================================================================
 /**
  * Hash data to a scalar using Keccak-256 and then reduce modulo curve order
- * This matches the hash_to_scalar function from pastella-core's crypto.cpp:
- *
- * static inline void hash_to_scalar(const void *data, size_t length, EllipticCurveScalar &res)
- * {
- *     cn_fast_hash(data, length, reinterpret_cast<Hash &>(res));
- *     sc_reduce32(reinterpret_cast<unsigned char *>(&res));
- * }
  */
 export function hashToScalar(data) {
     // Hash using Keccak-256 (cn_fast_hash uses Keccak)
@@ -76,9 +66,6 @@ export function hashToScalar(data) {
     result.set(hashBytes, 32); // Duplicate for 64-byte input
     return scReduce32(result);
 }
-// ============================================================================
-// RANDOM SCALAR GENERATION
-// ============================================================================
 /**
  * Generate a random scalar in [0, curve_order)
  * Matches random_scalar from crypto.cpp
@@ -91,36 +78,10 @@ export function randomScalar() {
     return scReduce(randomBytes);
 }
 // ============================================================================
-// SCHNORR SIGNATURE GENERATION (Matches generate_signature from crypto.cpp)
+// SCHNORR SIGNATURE GENERATION
 // ============================================================================
 /**
  * Generate a Schnorr-style signature on Ed25519 curve
- *
- * Algorithm from pastella-core's crypto.cpp:
- *
- * void crypto_ops::generate_signature(
- *     const Hash &prefix_hash,
- *     const PublicKey &pub,
- *     const SecretKey &sec,
- *     Signature &sig)
- * {
- *     ge_p3 tmp3;
- *     EllipticCurveScalar k;
- *     s_comm buf;
- *
- *     buf.h = prefix_hash;
- *     buf.key = pub;
- *     random_scalar(k);
- *     ge_scalarmult_base(&tmp3, &k);
- *     ge_p3_tobytes(&buf.comm, &tmp3);
- *     hash_to_scalar(&buf, sizeof(s_comm), &sig);
- *     sc_mulsub(&sig[32], &sig, &sec, &k);
- * }
- *
- * The signature structure s_comm contains:
- *   - h: prefix hash (32 bytes)
- *   - key: public key (32 bytes)
- *   - comm: commitment point R (32 bytes)
  *
  * @param prefixHash - Hash of transaction prefix (32 bytes)
  * @param publicKey - Public key as hex string (64 chars)
@@ -140,20 +101,20 @@ export function generateSchnorrSignature(prefixHash, publicKey, privateKey) {
     if (privateKeyBytes.length !== 32) {
         throw new Error(`Private key must be 32 bytes, got ${privateKeyBytes.length}`);
     }
-    // Step 1: Generate random nonce k
+    // Generate random nonce k
     const k = randomScalar();
-    // Step 2: Compute commitment R = k*G
+    // Compute commitment R = k*G
     const kBigInt = scalarToBigInt(k);
     const pointR = ed.Point.BASE.multiply(kBigInt);
     const comm = pointR.toRawBytes(); // 32 bytes
-    // Step 3: Create s_comm structure (h || key || comm)
+    // Create s_comm structure (h || key || comm)
     const sComm = new Uint8Array(96); // 32 + 32 + 32
     sComm.set(prefixHash, 0); // h
     sComm.set(publicKeyBytes, 32); // key
     sComm.set(comm, 64); // comm
-    // Step 4: Hash s_comm to get c (challenge)
+    // Hash s_comm to get c (challenge)
     const c = hashToScalar(sComm);
-    // Step 5: Compute s = k - c*sec (scalar subtraction)
+    // Compute s = k - c*sec (scalar subtraction)
     const secBigInt = scalarToBigInt(privateKeyBytes);
     const cBigInt = scalarToBigInt(c);
     // s = k - (c * sec) mod curve_order
@@ -163,7 +124,7 @@ export function generateSchnorrSignature(prefixHash, publicKey, privateKey) {
         sBigInt += CURVE_ORDER;
     }
     const s = bigIntToScalar(sBigInt);
-    // Step 6: Signature is (c || s)
+    // Signature is (c || s)
     const signature = new Uint8Array(64);
     signature.set(c, 0);
     signature.set(s, 32);
@@ -174,25 +135,6 @@ export function generateSchnorrSignature(prefixHash, publicKey, privateKey) {
 // ============================================================================
 /**
  * Verify a Schnorr-style signature
- *
- * Algorithm from pastella-core's crypto.cpp:
- *
- * bool crypto_ops::check_signature(const Hash &prefix_hash, const PublicKey &pub, const Signature &sig)
- * {
- *     ge_p2 tmp2;
- *     ge_p3 tmp3;
- *     EllipticCurveScalar c;
- *     s_comm buf;
- *
- *     buf.h = prefix_hash;
- *     buf.key = pub;
- *     ge_frombytes_vartime(&tmp3, &pub);
- *     ge_double_scalarmult_base_vartime(&tmp2, &sig, &tmp3, &sig[32]);
- *     ge_tobytes(&buf.comm, &tmp2);
- *     hash_to_scalar(&buf, sizeof(s_comm), c);
- *     sc_sub(&c, &c, &sig);
- *     return sc_isnonzero(&c) == 0;
- * }
  *
  * @param prefixHash - Hash of transaction prefix (32 bytes)
  * @param publicKey - Public key as hex string (64 chars)
@@ -301,19 +243,19 @@ export function generateKeyImage(publicKey, privateKey) {
     if (privateKeyBytes.length !== 32) {
         throw new Error(`Private key must be 32 bytes, got ${privateKeyBytes.length}`);
     }
-    // Step 1: Hash the public key using Keccak-256
+    // Hash the public key using Keccak-256
     const hash = keccak256(publicKeyBytes);
     const hashBytes = hexToBytes(hash);
-    // Step 2: Reduce hash to get a valid scalar
+    // Reduce hash to get a valid scalar
     const hashScalar = hashToScalar(hashBytes);
-    // Step 3: Interpret the scalar as an EC point (H(P))
+    // Interpret the scalar as an EC point (H(P))
     // In Ed25519, we multiply the base point by the hash scalar
     const hashScalarBigInt = scalarToBigInt(hashScalar);
     const pointHP = ed.Point.BASE.multiply(hashScalarBigInt);
-    // Step 4: Compute keyImage = x * H(P)
+    // Compute keyImage = x * H(P)
     const privateKeyBigInt = scalarToBigInt(privateKeyBytes);
     const keyImagePoint = pointHP.multiply(privateKeyBigInt);
-    // Step 5: Return key image as hex string
+    // Return key image as hex string
     return bytesToHex(keyImagePoint.toRawBytes());
 }
 // ============================================================================

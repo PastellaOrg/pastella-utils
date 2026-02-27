@@ -2,7 +2,6 @@
  * Pastella Staking Module
  *
  * Handles staking transaction creation and management
- * Based on pastella-core zedwallet++ implementation
  */
 import { WalletOutput, NodeConfig, PendingStake, PendingStakeState, StakingResult } from './types';
 import { SelectedInput } from './transaction';
@@ -43,7 +42,6 @@ maturityBlocks?: number, preparationTxHash?: string): {
 } | null;
 /**
  * Staking extra field data structure
- * Matches C++ TransactionExtraStaking from pastella-core
  */
 export interface TransactionExtraStaking {
     stakingType: number;

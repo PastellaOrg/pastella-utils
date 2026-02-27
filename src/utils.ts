@@ -163,45 +163,6 @@ export function getTransactionId(hash: string): string {
   return hash;
 }
 
-/**
- * Calculate estimated transaction size
- */
-export function estimateTransactionSize(
-  inputs: number,
-  outputs: number,
-  mixin: number,
-  paymentId: boolean = false
-): number {
-  // Basic size estimation formula
-  const headerSize = 1; // version
-  const unlockTimeSize = 8; // uint64
-  const extraSize = paymentId ? 34 : 2; // Payment ID or nonce
-
-  // Input size: type (1) + amount (8) + offsets (variable)
-  const inputSize = inputs * (1 + 8 + (mixin + 1) * 4);
-
-  // Output size: amount (8) + key (32)
-  const outputSize = outputs * (8 + 32);
-
-  // Signatures: 64 bytes per input
-  const signatureSize = inputs * 64;
-
-  return headerSize + unlockTimeSize + inputSize + outputSize + extraSize + signatureSize;
-}
-
-/**
- * Calculate transaction fee
- */
-export function calculateFee(
-  inputs: number,
-  outputs: number,
-  mixin: number,
-  feePerByte: number = 0.01
-): number {
-  const size = estimateTransactionSize(inputs, outputs, mixin);
-  return Math.ceil(size * feePerByte);
-}
-
 // ============================================================================
 // TIME UTILITIES
 // ============================================================================
@@ -327,13 +288,6 @@ export function validateAmount(amount: number): boolean {
 }
 
 /**
- * Validate mixin count
- */
-export function validateMixin(mixin: number, maxMixin: number = 10): boolean {
-  return mixin >= 0 && mixin <= maxMixin && Number.isInteger(mixin);
-}
-
-/**
  * Validate fee amount
  */
 export function validateFee(fee: number, minFee: number = 1000): boolean {
@@ -410,8 +364,6 @@ export default {
   splitMnemonic,
   joinMnemonic,
   getTransactionId,
-  estimateTransactionSize,
-  calculateFee,
   timestampToDate,
   dateToTimestamp,
   formatTimestamp,
@@ -420,7 +372,6 @@ export default {
   getUnlockBlocks,
   isOutputUnlocked,
   validateAmount,
-  validateMixin,
   validateFee,
   WalletError,
   InsufficientBalanceError,

@@ -82,7 +82,6 @@ export interface TransactionParameters {
     changeDestination: string;
     amounts: number[];
     fee?: number;
-    mixin?: number;
     unlockTime?: number;
     paymentId?: string;
 }
@@ -121,18 +120,6 @@ export interface GetTransactionsResponse {
     txs_as_hex: string[];
     missed_tx: string[];
     status: string;
-}
-export interface GetRandomOutsResponse {
-    outs: RandomOuts[];
-    status: string;
-}
-export interface RandomOuts {
-    amount: number;
-    outs: OutputEntry[];
-}
-export interface OutputEntry {
-    global_amount_index: number;
-    out_key: string;
 }
 export interface SendRawTransactionRequest {
     tx_as_hex: string;

@@ -58,14 +58,6 @@ export declare function joinMnemonic(words: string[]): string;
  */
 export declare function getTransactionId(hash: string): string;
 /**
- * Calculate estimated transaction size
- */
-export declare function estimateTransactionSize(inputs: number, outputs: number, mixin: number, paymentId?: boolean): number;
-/**
- * Calculate transaction fee
- */
-export declare function calculateFee(inputs: number, outputs: number, mixin: number, feePerByte?: number): number;
-/**
  * Convert Unix timestamp to date
  */
 export declare function timestampToDate(timestamp: number): Date;
@@ -98,10 +90,6 @@ export declare function isOutputUnlocked(unlockTime: number, currentHeight: numb
  */
 export declare function validateAmount(amount: number): boolean;
 /**
- * Validate mixin count
- */
-export declare function validateMixin(mixin: number, maxMixin?: number): boolean;
-/**
  * Validate fee amount
  */
 export declare function validateFee(fee: number, minFee?: number): boolean;
@@ -133,8 +121,6 @@ declare const _default: {
     splitMnemonic: typeof splitMnemonic;
     joinMnemonic: typeof joinMnemonic;
     getTransactionId: typeof getTransactionId;
-    estimateTransactionSize: typeof estimateTransactionSize;
-    calculateFee: typeof calculateFee;
     timestampToDate: typeof timestampToDate;
     dateToTimestamp: typeof dateToTimestamp;
     formatTimestamp: typeof formatTimestamp;
@@ -143,7 +129,6 @@ declare const _default: {
     getUnlockBlocks: typeof getUnlockBlocks;
     isOutputUnlocked: typeof isOutputUnlocked;
     validateAmount: typeof validateAmount;
-    validateMixin: typeof validateMixin;
     validateFee: typeof validateFee;
     WalletError: typeof WalletError;
     InsufficientBalanceError: typeof InsufficientBalanceError;
